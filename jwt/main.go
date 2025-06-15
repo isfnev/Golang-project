@@ -1,29 +1,30 @@
 package main
 
 import (
-	"net/http"
 	"fmt"
+	"net/http"
 	"time"
 )
 
-type Login struct{
+type Login struct {
 	HashedPassword string
-	SessionToken string
-	CSRFToken string
+	SessionToken   string
+	CSRFToken      string
 }
 
 var users = map[string]Login{}
 
-func main(){
+func main() {
 	http.HandleFunc("/register", register)
 	http.HandleFunc("/login", login)
 	http.HandleFunc("/logout", logout)
 	http.HandleFunc("/protected", protected)
 
+	fmt.Println("Starting server at port 8080...")
 	http.ListenAndServe(":8080", nil)
 }
 
-func register(w http.ResponseWriter, r *http.Request){
+func register(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid Method", http.StatusMethodNotAllowed)
 		return
@@ -31,7 +32,7 @@ func register(w http.ResponseWriter, r *http.Request){
 
 	username := r.FormValue("username")
 	password := r.FormValue("password")
-	if len(username)<8 || len(password)<8 {
+	if len(username) < 8 || len(password) < 8 {
 		http.Error(w, "Invalid username/password", http.StatusNotAcceptable)
 		return
 	}
@@ -43,18 +44,55 @@ func register(w http.ResponseWriter, r *http.Request){
 
 	hashPassword, _ := hashPassword(password)
 	users[username] = Login{
-		HashPassword : hashPassword,
+		HashedPassword: hashPassword,
 	}
+
+	fmt.Fprintf(w, "User registered successfully (%s:%s)\n", username, users[username].HashedPassword)
 }
 
-func login(w http.ResponseWriter, r *http.Request){
-	
+func login(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid Method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	username := r.FormValue("username")
+	password := r.FormValue("password")
+	user, ok := users[username]
+
+	if !ok || !checkPasswordHash(password, user.HashedPassword) {
+		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+		return
+	}
+
+	sessionToken := generateToken(32)
+	csrfToken := generateToken(32)
+
+	http.SetCookie(w, &http.Cookie{
+		Name:    "session_token",
+		Value:   sessionToken,
+		Expires: time.Now().Add(24*time.Hour),
+		HttpOnly: true,
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name: "csrf_token",
+		Value: csrfToken,
+		Expires : time.Now().Add(24*time.Hour),
+		HttpOnly: false,
+	})
+
+	user.SessionToken = sessionToken
+	user.CSRFToken = csrfToken
+	users[username] = user
+
+	fmt.Fprintln(w, "Login successful!")
 }
 
-func logout(w http.ResponseWriter, r *http.Request){
-	
+func logout(w http.ResponseWriter, r *http.Request) {
+
 }
 
-func protected(w http.ResponseWriter, r *http.Request){
-	
+func protected(w http.ResponseWriter, r *http.Request) {
+
 }
