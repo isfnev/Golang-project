@@ -9,7 +9,7 @@ import (
 func Router() (R *mux.Router) {
 	R = mux.NewRouter()
 
-	R.HandleFunc("/todo", service.CreateNote).Methods("POST")
+	R.HandleFunc("/todo_", service.CreateNote).Methods("POST")
 	R.HandleFunc("/todo", service.UpdateNote).Methods("PUT")
 	R.HandleFunc("/todo", service.GetAllNotes).Methods("GET")
 	R.HandleFunc("/todo", service.DeleteNote).Methods("DELETE")
